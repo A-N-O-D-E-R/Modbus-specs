@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Minimal XSD for validating the ModbusSpec document structure -->
+<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+            targetNamespace="urn:example:modbus:spec"
+            xmlns="urn:example:modbus:spec"
+            elementFormDefault="qualified">
+
+  <xsd:element name="ModbusSpec">
+    <xsd:complexType>
+      <xsd:sequence>
+        <xsd:element name="Metadata" minOccurs="1" maxOccurs="1"/>
+        <xsd:element name="FunctionCodes" minOccurs="0"/>
+        <xsd:element name="DataModel" minOccurs="0"/>
+        <xsd:element name="Addressing" minOccurs="0"/>
+        <xsd:element name="ExceptionCodes" minOccurs="0"/>
+        <xsd:element name="TransportModes" minOccurs="0"/>
+        <xsd:element name="RegisterMap" minOccurs="0"/>
+        <xsd:element name="Examples" minOccurs="0"/>
+        <xsd:element name="Extensions" minOccurs="0"/>
+        <xsd:element name="RevisionHistory" minOccurs="0"/>
+      </xsd:sequence>
+      <xsd:attribute name="version" type="xsd:string" use="required"/>
+      <xsd:attribute name="generated" type="xsd:date" use="optional"/>
+    </xsd:complexType>
+  </xsd:element>
+
+  <!-- Loose typing for subtrees to keep schema compact and tolerant -->
+  <xsd:any namespace="##any" processContents="lax" minOccurs="0" maxOccurs="unbounded"/>
+</xsd:schema>

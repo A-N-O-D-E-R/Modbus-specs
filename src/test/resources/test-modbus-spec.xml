@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ModbusSpec xmlns="urn:example:modbus:spec">
+    <!-- Connection configuration for testing -->
+    <Connection type="TCP">
+        <Host>localhost</Host>
+        <Port>5020</Port>
+        <Timeout>2000</Timeout>
+        <Reconnect>false</Reconnect>
+    </Connection>
+
+    <FunctionCodes>
+        <FunctionCode code="1" name="ReadCoils">
+            <Description>Read coil status</Description>
+        </FunctionCode>
+        <FunctionCode code="2" name="ReadDiscreteInputs">
+            <Description>Read discrete input status</Description>
+        </FunctionCode>
+        <FunctionCode code="3" name="ReadHoldingRegisters">
+            <Description>Read holding register values</Description>
+        </FunctionCode>
+        <FunctionCode code="4" name="ReadInputRegisters">
+            <Description>Read input register values</Description>
+        </FunctionCode>
+        <FunctionCode code="5" name="WriteSingleCoil">
+            <Description>Write a single coil</Description>
+        </FunctionCode>
+        <FunctionCode code="6" name="WriteSingleRegister">
+            <Description>Write a single holding register</Description>
+        </FunctionCode>
+        <FunctionCode code="15" name="WriteMultipleCoils">
+            <Description>Write multiple coils</Description>
+        </FunctionCode>
+        <FunctionCode code="16" name="WriteMultipleRegisters">
+            <Description>Write multiple holding registers</Description>
+        </FunctionCode>
+    </FunctionCodes>
+
+    <RegisterMap>
+        <Device id="TestController" unitId="10">
+            <Coils>
+                <Register name="Alarm" address="0">
+                    <DataType>bool</DataType>
+                    <Access>RW</Access>
+                </Register>
+                <Register name="RunStatus" address="1">
+                    <DataType>bool</DataType>
+                    <Access>R</Access>
+                </Register>
+            </Coils>
+            <DiscreteInputs>
+                <Register name="DoorOpen" address="0">
+                    <DataType>bool</DataType>
+                    <Access>R</Access>
+                </Register>
+            </DiscreteInputs>
+            <InputRegisters>
+                <Register name="ActualTemp" address="0">
+                    <DataType>uint16</DataType>
+                    <Access>R</Access>
+                </Register>
+            </InputRegisters>
+            <HoldingRegisters>
+                <Register name="SetpointTemp" address="0">
+                    <DataType>uint16</DataType>
+                    <Access>RW</Access>
+                </Register>
+                <Register name="MaxTemp" address="1">
+                    <DataType>uint16</DataType>
+                    <Access>RW</Access>
+                </Register>
+                <Register name="MinTemp" address="2">
+                    <DataType>uint16</DataType>
+                    <Access>R</Access>
+                </Register>
+            </HoldingRegisters>
+        </Device>
+        <Device id="SecondDevice" unitId="20">
+            <HoldingRegisters>
+                <Register name="Counter" address="0">
+                    <DataType>uint32</DataType>
+                    <Access>R</Access>
+                </Register>
+            </HoldingRegisters>
+        </Device>
+    </RegisterMap>
+</ModbusSpec>

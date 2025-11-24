@@ -1,0 +1,269 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Modbus specification in XML (version 1.0) -->
+<ModbusSpec xmlns="urn:example:modbus:spec"
+           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+           xsi:schemaLocation="urn:example:modbus:spec modbus-spec.xsd"
+           version="1.0"
+           generated="2025-11-24">
+  <!-- Metadata -->
+  <Metadata>
+    <Title>Standard Modbus Specification (XML)</Title>
+    <Description>
+      Canonical description of Modbus protocol elements: function codes, data/register
+      types, exception codes, frame formats (RTU/TCP), addressing, and example register map.
+    </Description>
+    <Organization>Example Inc.</Organization>
+    <Contact>specs@example.com</Contact>
+    <Scope>
+      This document covers commonly used Modbus function codes and register types suitable
+      for RTU (serial) and TCP usage. It is a machine-readable representation intended
+      for configuration systems, documentation generators, and registers management tools.
+    </Scope>
+  </Metadata>
+
+  <!-- Connection configuration -->
+  <Connection type="TCP">
+    <Host>192.168.1.100</Host>
+    <Port>502</Port>
+    <Timeout>3000</Timeout>
+    <Reconnect>true</Reconnect>
+  </Connection>
+
+  <!-- Function codes (common subset) -->
+  <FunctionCodes>
+    <FunctionCode code="1" name="ReadCoils">
+      <Category>Read</Category>
+      <Description>Read discrete outputs (coils). Returns ON/OFF bits.</Description>
+      <RequestPDU>Function(1) + StartAddress + Quantity</RequestPDU>
+      <ResponsePDU>ByteCount + CoilStatusN</ResponsePDU>
+    </FunctionCode>
+
+    <FunctionCode code="2" name="ReadDiscreteInputs">
+      <Category>Read</Category>
+      <Description>Read discrete inputs (read-only bits).</Description>
+    </FunctionCode>
+
+    <FunctionCode code="3" name="ReadHoldingRegisters">
+      <Category>Read</Category>
+      <Description>Read analog output registers (16-bit each).</Description>
+    </FunctionCode>
+
+    <FunctionCode code="4" name="ReadInputRegisters">
+      <Category>Read</Category>
+      <Description>Read analog input registers (read-only 16-bit each).</Description>
+    </FunctionCode>
+
+    <FunctionCode code="5" name="WriteSingleCoil">
+      <Category>Write</Category>
+      <Description>Write a single coil (ON/OFF).</Description>
+    </FunctionCode>
+
+    <FunctionCode code="6" name="WriteSingleRegister">
+      <Category>Write</Category>
+      <Description>Write a single 16-bit register.</Description>
+    </FunctionCode>
+
+    <FunctionCode code="15" name="WriteMultipleCoils">
+      <Category>Write</Category>
+      <Description>Write multiple coils in one request.</Description>
+    </FunctionCode>
+
+    <FunctionCode code="16" name="WriteMultipleRegisters">
+      <Category>Write</Category>
+      <Description>Write multiple contiguous 16-bit registers.</Description>
+    </FunctionCode>
+
+    <!-- Additional commonly-used codes -->
+    <FunctionCode code="23" name="ReadWriteMultipleRegisters">
+      <Category>Read/Write</Category>
+      <Description>Combined read/write for multiple registers in single transaction.</Description>
+    </FunctionCode>
+  </FunctionCodes>
+
+  <!-- Data / register types -->
+  <DataModel>
+    <RegisterType id="Coil">
+      <AddressNotation>0xxxx (1-based 00001 - vendor convention)</AddressNotation>
+      <Size>1 bit</Size>
+      <Access>Read/Write</Access>
+      <Semantic>Discrete output</Semantic>
+      <TypicalRange>00001 - 09999</TypicalRange>
+    </RegisterType>
+
+    <RegisterType id="DiscreteInput">
+      <AddressNotation>1xxxx</AddressNotation>
+      <Size>1 bit</Size>
+      <Access>Read-only</Access>
+      <Semantic>Discrete input</Semantic>
+      <TypicalRange>10001 - 19999</TypicalRange>
+    </RegisterType>
+
+    <RegisterType id="InputRegister">
+      <AddressNotation>3xxxx</AddressNotation>
+      <Size>16-bit</Size>
+      <Access>Read-only</Access>
+      <Semantic>Analog input</Semantic>
+      <TypicalRange>30001 - 39999</TypicalRange>
+    </RegisterType>
+
+    <RegisterType id="HoldingRegister">
+      <AddressNotation>4xxxx</AddressNotation>
+      <Size>16-bit</Size>
+      <Access>Read/Write</Access>
+      <Semantic>Analog output / general purpose</Semantic>
+      <TypicalRange>40001 - 49999</TypicalRange>
+    </RegisterType>
+
+    <DataTypes>
+      <DataType name="uint16" sizeBits="16" canonical="unsigned 16-bit integer"/>
+      <DataType name="int16" sizeBits="16" canonical="signed 16-bit integer"/>
+      <DataType name="uint32" sizeBits="32" canonical="pair of registers (big-endian or little-endian per device)"/>
+      <DataType name="float32" sizeBits="32" canonical="IEEE-754 float encoded in two registers; endianness device-specific"/>
+      <DataType name="bitfield" sizeBits="N" canonical="packed bits inside a register or coil sequence"/>
+    </DataTypes>
+  </DataModel>
+
+  <!-- Addressing -->
+  <Addressing>
+    <UnitId min="1" max="247">Modbus Unit Identifier (slave address) for RTU/ASCII and for TCP when bridging</UnitId>
+    <BroadcastAddress value="0">Broadcast (RTU only) — slaves do not reply</BroadcastAddress>
+    <RegisterAddressing>
+      <Convention>0-based offsets are used in PDU. User-oriented 1-based notation (e.g. 40001) is informational only.</Convention>
+    </RegisterAddressing>
+  </Addressing>
+
+  <!-- Exception codes -->
+  <ExceptionCodes>
+    <Exception code="1" name="IllegalFunction">Function code not supported by slave.</Exception>
+    <Exception code="2" name="IllegalDataAddress">Address not available on slave.</Exception>
+    <Exception code="3" name="IllegalDataValue">Value not acceptable or out of range.</Exception>
+    <Exception code="4" name="SlaveDeviceFailure">Unrecoverable error while processing request.</Exception>
+    <Exception code="5" name="Acknowledge">Request accepted but processing longer than normal.</Exception>
+    <Exception code="6" name="SlaveDeviceBusy">Slave is busy processing another command.</Exception>
+    <Exception code="8" name="MemoryParityError">Memory parity error on slave.</Exception>
+    <Exception code="10" name="GatewayPathUnavailable">Gateway path not available to target device.</Exception>
+    <Exception code="11" name="GatewayTargetFailedToRespond">Target device failed to respond via gateway.</Exception>
+  </ExceptionCodes>
+
+  <!-- Frame and transport summaries -->
+  <TransportModes>
+    <RTU>
+      <Description>Serial Modbus RTU framing: Address(1) + PDU + CRC(2). Byte-oriented, binary.</Description>
+      <Timing>
+        <T3_5FrameDelay>3.5 character times at configured baud for frame separation</T3_5FrameDelay>
+      </Timing>
+      <CRC polynomial="0xA001" note="16-bit CRC (LSB first)"/>
+    </RTU>
+
+    <TCP>
+      <Description>Modbus TCP uses MBAP header + PDU. Runs over TCP port 502 by default.</Description>
+      <MBAPHeader>
+        <TransactionId sizeBytes="2"/>
+        <ProtocolId sizeBytes="2" value="0"/>
+        <Length sizeBytes="2">Byte count of following payload (UnitId + PDU)</Length>
+        <UnitId sizeBytes="1">Unit identifier (for gateway to serial devices)</UnitId>
+      </MBAPHeader>
+    </TCP>
+  </TransportModes>
+
+  <!-- Example register map (device-specific sample) -->
+  <RegisterMap>
+    <Device id="ExampleController" unitId="10">
+      <Description>Example PLC-like device register map</Description>
+
+      <!-- Coils -->
+      <Coils>
+        <Coil name="StartPump" address="0" userAddress="00001">
+          <Description>Start command for pump (write 1 to start)</Description>
+          <Access>RW</Access>
+        </Coil>
+        <Coil name="StopPump" address="1" userAddress="00002">
+          <Description>Stop command for pump</Description>
+          <Access>RW</Access>
+        </Coil>
+      </Coils>
+
+      <!-- Discrete Inputs -->
+      <DiscreteInputs>
+        <DiscreteInput name="OvertempAlarm" address="0" userAddress="10001">
+          <Description>Over-temperature alarm input (read-only)</Description>
+          <Access>R</Access>
+        </DiscreteInput>
+      </DiscreteInputs>
+
+      <!-- Input Registers -->
+      <InputRegisters>
+        <Register name="Temperature" address="0" userAddress="30001">
+          <DataType>uint16</DataType>
+          <Scale>0.1</Scale>
+          <Description>Measured temperature (0.1 °C units): raw 235 = 23.5°C</Description>
+          <Access>R</Access>
+        </Register>
+
+        <Register name="Pressure" address="1" userAddress="30002">
+          <DataType>uint16</DataType>
+          <Scale>0.01</Scale>
+          <Description>Measured pressure in bar (0.01 bar resolution)</Description>
+          <Access>R</Access>
+        </Register>
+      </InputRegisters>
+
+      <!-- Holding Registers -->
+      <HoldingRegisters>
+        <Register name="SetpointTemp" address="0" userAddress="40001">
+          <DataType>int16</DataType>
+          <Scale>0.1</Scale>
+          <Access>RW</Access>
+          <Default>200</Default>
+          <Description>Desired temperature setpoint (0.1 °C units)</Description>
+        </Register>
+
+        <Register name="DeviceStatus" address="1" userAddress="40002">
+          <DataType>uint16</DataType>
+          <Access>R</Access>
+          <Description>Bitfield: [0]=running, [1]=fault, [2]=maintenance</Description>
+        </Register>
+
+        <Register name="ControlMode" address="2" userAddress="40003">
+          <DataType>uint16</DataType>
+          <Access>RW</Access>
+          <Enumerations>
+            <Enum value="0">Manual</Enum>
+            <Enum value="1">Automatic</Enum>
+            <Enum value="2">Remote</Enum>
+          </Enumerations>
+        </Register>
+      </HoldingRegisters>
+    </Device>
+  </RegisterMap>
+
+  <!-- Examples: PDU/ADU snippets -->
+  <Examples>
+    <Example id="ReadHoldingRegisters">
+      <Description>Master reads 2 registers starting at address 0 from unit 10 (RTU)</Description>
+      <Request>10 03 00 00 00 02 CRC</Request>
+      <Response>10 03 04 <Reg1Hi> <Reg1Lo> <Reg2Hi> <Reg2Lo> CRC</Response>
+    </Example>
+
+    <Example id="WriteSingleRegister">
+      <Description>Write value 0x00C8 (200) to register 40001 on unit 10</Description>
+      <Request>10 06 00 00 00 C8 CRC</Request>
+      <Response>Echo of request</Response>
+    </Example>
+  </Examples>
+
+  <!-- Extensions / device-specific parameters -->
+  <Extensions>
+    <Endianness default="big">Note: 32-bit values (uint32/float32) may be encoded as Big-Endian (register0 high-word) or as "swapped" — check device documentation.</Endianness>
+    <Timeouts>
+      <RequestTimeout unit="ms" recommended="2000">Master request timeout default</RequestTimeout>
+    </Timeouts>
+  </Extensions>
+
+  <!-- Revision history -->
+  <RevisionHistory>
+    <Revision version="1.0" date="2025-11-24">
+      Initial XML representation of a standard Modbus specification.
+    </Revision>
+  </RevisionHistory>
+</ModbusSpec>
