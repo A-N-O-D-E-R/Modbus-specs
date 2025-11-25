@@ -6,9 +6,9 @@ import com.anode.modbus.model.Device;
 import com.anode.modbus.model.FunctionCode;
 import com.anode.modbus.model.Register;
 import com.anode.modbus.repository.ModbusSpecRepository;
-import com.anode.modbus.service.ModbusService.ModbusOperationHandler;
-import com.anode.modbus.service.ModbusService.ModbusRequest;
-import com.anode.modbus.service.ModbusService.ModbusResult;
+import com.anode.modbus.service.handlers.ModbusOperationHandler;
+import com.anode.modbus.service.handlers.ModbusOperationHandler.ModbusRequest;
+import com.anode.modbus.service.handlers.ModbusOperationHandler.ModbusResult;
 import com.ghgande.j2mod.modbus.procimg.SimpleRegister;
 import com.ghgande.j2mod.modbus.util.BitVector;
 import org.junit.jupiter.api.BeforeEach;
@@ -240,17 +240,5 @@ class ModbusServiceTest {
         assertThat(request.getUnitId()).isEqualTo(10);
         assertThat(request.getAddress()).isEqualTo(100);
         assertThat(request.getQuantity()).isEqualTo(5);
-    }
-
-    @Test
-    @DisplayName("ConsoleOperationHandler should return success")
-    void consoleOperationHandlerShouldReturnSuccess() {
-        ModbusService.ConsoleOperationHandler handler = new ModbusService.ConsoleOperationHandler();
-        FunctionCode fc = new FunctionCode("3", "ReadHoldingRegisters", "Test");
-        ModbusRequest request = new ModbusRequest(fc, 10, 0, 5);
-
-        ModbusResult result = handler.execute(request);
-
-        assertThat(result.isSuccess()).isTrue();
     }
 }
