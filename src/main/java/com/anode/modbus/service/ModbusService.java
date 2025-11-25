@@ -6,6 +6,9 @@ import com.anode.modbus.model.Device;
 import com.anode.modbus.model.FunctionCode;
 import com.anode.modbus.model.Register;
 import com.anode.modbus.repository.ModbusSpecRepository;
+import com.anode.modbus.service.handlers.ModbusOperationHandler;
+import static com.anode.modbus.service.handlers.ModbusOperationHandler.ModbusRequest;
+import static com.anode.modbus.service.handlers.ModbusOperationHandler.ModbusResult;
 import com.ghgande.j2mod.modbus.procimg.InputRegister;
 import com.ghgande.j2mod.modbus.procimg.SimpleRegister;
 import com.ghgande.j2mod.modbus.util.BitVector;
@@ -21,9 +24,6 @@ public class ModbusService {
     private final ModbusSpecRepository repository;
     private final ModbusOperationHandler operationHandler;
 
-    public ModbusService(ModbusSpecRepository repository) {
-        this(repository, new ConsoleOperationHandler());
-    }
 
     public ModbusService(ModbusSpecRepository repository, ModbusOperationHandler operationHandler) {
         this.repository = repository;
@@ -195,103 +195,5 @@ public class ModbusService {
         }
         return connection.writeMultipleRegisters(unitId, address, registers);
     }
-
-    /**
-     * Represents a Modbus request.
-     */
-    public static class ModbusRequest {
-        private final FunctionCode functionCode;
-        private final int unitId;
-        private final int address;
-        private final int quantity;
-
-        public ModbusRequest(FunctionCode functionCode, int unitId, int address, int quantity) {
-            this.functionCode = functionCode;
-            this.unitId = unitId;
-            this.address = address;
-            this.quantity = quantity;
-        }
-
-        public FunctionCode getFunctionCode() {
-            return functionCode;
-        }
-
-        public int getUnitId() {
-            return unitId;
-        }
-
-        public int getAddress() {
-            return address;
-        }
-
-        public int getQuantity() {
-            return quantity;
-        }
-    }
-
-    /**
-     * Represents the result of a Modbus operation.
-     */
-    public static class ModbusResult {
-        private final boolean success;
-        private final String message;
-        private final byte[] data;
-
-        private ModbusResult(boolean success, String message, byte[] data) {
-            this.success = success;
-            this.message = message;
-            this.data = data;
-        }
-
-        public static ModbusResult success(String message) {
-            return new ModbusResult(true, message, null);
-        }
-
-        public static ModbusResult success(String message, byte[] data) {
-            return new ModbusResult(true, message, data);
-        }
-
-        public static ModbusResult failure(String message) {
-            return new ModbusResult(false, message, null);
-        }
-
-        public boolean isSuccess() {
-            return success;
-        }
-
-        public String getMessage() {
-            return message;
-        }
-
-        public byte[] getData() {
-            return data;
-        }
-    }
-
-    /**
-     * Interface for handling Modbus operations.
-     * Implement this to provide actual Modbus communication.
-     */
-    public interface ModbusOperationHandler {
-        ModbusResult execute(ModbusRequest request);
-    }
-
-    /**
-     * Default handler that logs operations to console (simulation).
-     */
-    public static class ConsoleOperationHandler implements ModbusOperationHandler {
-        @Override
-        public ModbusResult execute(ModbusRequest request) {
-            FunctionCode fc = request.getFunctionCode();
-
-            System.out.println("Executing Modbus function: " + fc.getName() + " (code: " + fc.getCode() + ")");
-            System.out.println("Description: " + fc.getDescription());
-            System.out.println("Unit ID: " + request.getUnitId());
-            System.out.println("Address: " + request.getAddress());
-            System.out.println("Quantity: " + request.getQuantity());
-            System.out.println("(Simulated) Modbus request sent.");
-
-            return ModbusResult.success("Request simulated successfully");
-        }
-    }
+    
 }

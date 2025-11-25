@@ -1,19 +1,22 @@
 package com.anode.modbus.parsers;
 
+import com.anode.modbus.api.AccessorOperation;
 import com.anode.modbus.api.ModbusOperation;
 import com.anode.modbus.connection.ModbusConnection;
 import com.anode.modbus.connection.ModbusConnectionException;
 import com.anode.modbus.connection.ModbusTcpConnection;
 import com.anode.modbus.connection.ModbusSerialConnection;
+import com.anode.modbus.model.Accessor;
 import com.anode.modbus.model.ConnectionConfig;
 import com.anode.modbus.model.Device;
 import com.anode.modbus.model.FunctionCode;
 import com.anode.modbus.parser.ModbusParseException;
 import com.anode.modbus.parser.ModbusXmlParser;
 import com.anode.modbus.repository.ModbusSpecRepository;
-import com.anode.modbus.service.J2ModOperationHandler;
 import com.anode.modbus.service.ModbusService;
-import com.anode.modbus.service.ModbusService.ModbusResult;
+import com.anode.modbus.service.handlers.J2ModOperationHandler;
+import com.anode.modbus.service.handlers.ModbusOperationHandler;
+import static com.anode.modbus.service.handlers.ModbusOperationHandler.ModbusResult;
 import com.ghgande.j2mod.modbus.procimg.InputRegister;
 import com.ghgande.j2mod.modbus.procimg.Register;
 import com.ghgande.j2mod.modbus.util.BitVector;
@@ -30,6 +33,10 @@ import java.util.Optional;
  *
  * <p>This class coordinates the parsing, storage, and service layers to provide
  * a clean, easy-to-use interface for working with Modbus specifications.</p>
+ *
+ * <p><b>Thread-Safety:</b> This class is NOT thread-safe by default due to mutable
+ * connection state. If concurrent access is required, users should synchronize externally
+ * or create separate instances per thread. The underlying repository is thread-safe.</p>
  *
  * <p>Example usage with TCP connection:</p>
  * <pre>{@code
@@ -62,16 +69,16 @@ public class ModbusSpecParser implements AutoCloseable {
     private ModbusConnection activeConnection;
 
     /**
-     * Creates a new ModbusSpecParser with default components.
+     * Creates a new ModbusSpecParser with default components and a simulated handler.
      */
     public ModbusSpecParser() {
-        this.xmlParser = new ModbusXmlParser();
-        this.repository = new ModbusSpecRepository();
-        this.service = new ModbusService(repository);
+        this(new SimulatedOperationHandler());
     }
 
-
-    public ModbusSpecParser(ModbusService.ModbusOperationHandler operationHandler) {
+    /**
+     * Creates a new ModbusSpecParser with a custom operation handler.
+     */
+    public ModbusSpecParser(ModbusOperationHandler operationHandler) {
         this.xmlParser = new ModbusXmlParser();
         this.repository = new ModbusSpecRepository();
         this.service = new ModbusService(repository, operationHandler);
@@ -85,6 +92,16 @@ public class ModbusSpecParser implements AutoCloseable {
         this.xmlParser = xmlParser;
         this.repository = repository;
         this.service = service;
+    }
+
+    /**
+     * Default simulated operation handler for testing without hardware.
+     */
+    private static class SimulatedOperationHandler implements ModbusOperationHandler {
+        @Override
+        public ModbusResult execute(ModbusRequest request) {
+            return ModbusResult.success("(Simulated) Modbus request sent.");
+        }
     }
 
     /**
@@ -195,11 +212,76 @@ public class ModbusSpecParser implements AutoCloseable {
      * Sets a custom operation handler for the service.
      * Use this to provide actual Modbus communication implementation.
      */
-    public void setOperationHandler(ModbusService.ModbusOperationHandler handler) {
+    public void setOperationHandler(ModbusOperationHandler handler) {
         this.service = new ModbusService(repository, handler);
     }
 
     // ==================== Simple Fluent API ====================
+
+    /**
+     * Returns an AccessorOperation for the given accessor name.
+     * This is the preferred way to interact with Modbus devices when accessors are defined.
+     *
+     * <p>Example usage:</p>
+     * <pre>{@code
+     * // Read using accessor
+     * int[] temps = parser.accessor("getAllTemperatures")
+     *     .unitId(1)
+     *     .read();
+     *
+     * // Read single value
+     * int temp1 = parser.accessor("getTemperature1")
+     *     .unitId(1)
+     *     .readSingle();
+     *
+     * // Write using accessor
+     * parser.accessor("setValvePositions")
+     *     .unitId(1)
+     *     .write(new int[]{1, 0, 1, 0});
+     * }</pre>
+     *
+     * @param accessorName The accessor name (e.g., "getTemperature1")
+     * @return An AccessorOperation for fluent chaining
+     * @throws IllegalArgumentException if the accessor is not found
+     */
+    public AccessorOperation accessor(String accessorName) {
+        return accessor(accessorName, null);
+    }
+
+    /**
+     * Returns an AccessorOperation for the given accessor name and device ID.
+     *
+     * @param accessorName The accessor name
+     * @param deviceId The device ID to search in, or null to search all devices
+     * @return An AccessorOperation for fluent chaining
+     * @throws IllegalArgumentException if the accessor is not found
+     */
+    public AccessorOperation accessor(String accessorName, String deviceId) {
+        Accessor accessor = null;
+
+        if (deviceId != null) {
+            // Search in specific device
+            Optional<Device> device = repository.findDeviceById(deviceId);
+            if (device.isPresent()) {
+                accessor = device.get().findAccessorByName(accessorName).orElse(null);
+            }
+        } else {
+            // Search in all devices
+            for (Device device : repository.getAllDevices()) {
+                Optional<Accessor> found = device.findAccessorByName(accessorName);
+                if (found.isPresent()) {
+                    accessor = found.get();
+                    break;
+                }
+            }
+        }
+
+        if (accessor == null) {
+            throw new IllegalArgumentException("Accessor not found: " + accessorName);
+        }
+
+        return new AccessorOperation(accessor, this::getOrCreateConnection);
+    }
 
     /**
      * Returns a ModbusOperation for the given function name.

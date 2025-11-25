@@ -48,6 +48,9 @@ public class ModbusOperation {
      * Sets the unit/slave ID for the operation.
      */
     public ModbusOperation unitId(int unitId) {
+        if (unitId < 0 || unitId > 247) {
+            throw new IllegalArgumentException("Unit ID must be between 0 and 247, got: " + unitId);
+        }
         this.unitId = unitId;
         return this;
     }
@@ -56,6 +59,9 @@ public class ModbusOperation {
      * Sets the starting address for the operation.
      */
     public ModbusOperation address(int address) {
+        if (address < 0 || address > 65535) {
+            throw new IllegalArgumentException("Address must be between 0 and 65535, got: " + address);
+        }
         this.address = address;
         return this;
     }
@@ -64,6 +70,13 @@ public class ModbusOperation {
      * Sets the quantity of registers/coils to read.
      */
     public ModbusOperation quantity(int quantity) {
+        if (quantity < 1) {
+            throw new IllegalArgumentException("Quantity must be at least 1, got: " + quantity);
+        }
+        // Modbus protocol limits: max 125 registers (read), 2000 coils
+        if (quantity > 2000) {
+            throw new IllegalArgumentException("Quantity exceeds Modbus protocol limit (max 2000), got: " + quantity);
+        }
         this.quantity = quantity;
         return this;
     }

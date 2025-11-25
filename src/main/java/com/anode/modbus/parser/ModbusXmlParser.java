@@ -1,5 +1,6 @@
 package com.anode.modbus.parser;
 
+import com.anode.modbus.model.Accessor;
 import com.anode.modbus.model.ConnectionConfig;
 import com.anode.modbus.model.Device;
 import com.anode.modbus.model.FunctionCode;
@@ -28,6 +29,17 @@ public class ModbusXmlParser {
     public ModbusXmlParser() {
         this.factory = DocumentBuilderFactory.newInstance();
         this.factory.setNamespaceAware(true);
+
+        // Security: Disable XXE (XML External Entity) attacks
+        try {
+            this.factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+            this.factory.setFeature("http://xml.org/sax/features/external-general-entities", false);
+            this.factory.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
+            this.factory.setXIncludeAware(false);
+            this.factory.setExpandEntityReferences(false);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to configure secure XML parser", e);
+        }
     }
 
     /**
@@ -86,12 +98,20 @@ public class ModbusXmlParser {
 
         String port = getElementTextContent(element, "Port");
         if (!port.isEmpty()) {
-            builder.port(Integer.parseInt(port));
+            try {
+                builder.port(Integer.parseInt(port));
+            } catch (NumberFormatException e) {
+                throw new RuntimeException("Invalid port value: " + port, e);
+            }
         }
 
         String timeout = getElementTextContent(element, "Timeout");
         if (!timeout.isEmpty()) {
-            builder.timeout(Integer.parseInt(timeout));
+            try {
+                builder.timeout(Integer.parseInt(timeout));
+            } catch (NumberFormatException e) {
+                throw new RuntimeException("Invalid timeout value: " + timeout, e);
+            }
         }
 
         String reconnect = getElementTextContent(element, "Reconnect");
@@ -107,17 +127,29 @@ public class ModbusXmlParser {
 
         String baudRate = getElementTextContent(element, "BaudRate");
         if (!baudRate.isEmpty()) {
-            builder.baudRate(Integer.parseInt(baudRate));
+            try {
+                builder.baudRate(Integer.parseInt(baudRate));
+            } catch (NumberFormatException e) {
+                throw new RuntimeException("Invalid baud rate value: " + baudRate, e);
+            }
         }
 
         String dataBits = getElementTextContent(element, "DataBits");
         if (!dataBits.isEmpty()) {
-            builder.dataBits(Integer.parseInt(dataBits));
+            try {
+                builder.dataBits(Integer.parseInt(dataBits));
+            } catch (NumberFormatException e) {
+                throw new RuntimeException("Invalid data bits value: " + dataBits, e);
+            }
         }
 
         String stopBits = getElementTextContent(element, "StopBits");
         if (!stopBits.isEmpty()) {
-            builder.stopBits(Integer.parseInt(stopBits));
+            try {
+                builder.stopBits(Integer.parseInt(stopBits));
+            } catch (NumberFormatException e) {
+                throw new RuntimeException("Invalid stop bits value: " + stopBits, e);
+            }
         }
 
         String parity = getElementTextContent(element, "Parity");
@@ -164,18 +196,59 @@ public class ModbusXmlParser {
 
     private Device parseDevice(Element element) {
         String id = element.getAttribute("id");
-        int unitId = Integer.parseInt(element.getAttribute("unitId"));
+        String unitIdStr = element.getAttribute("unitId");
+        int unitId;
+        try {
+            unitId = Integer.parseInt(unitIdStr);
+        } catch (NumberFormatException e) {
+            throw new RuntimeException("Invalid unit ID value for device '" + id + "': " + unitIdStr, e);
+        }
 
         Device.Builder builder = Device.builder()
                 .id(id)
                 .unitId(unitId);
 
+        parseAccessors(element, builder);
         parseRegisters(element, "HoldingRegisters", builder::addHoldingRegister);
         parseRegisters(element, "InputRegisters", builder::addInputRegister);
         parseRegisters(element, "Coils", builder::addCoil);
         parseRegisters(element, "DiscreteInputs", builder::addDiscreteInput);
 
         return builder.build();
+    }
+
+    private void parseAccessors(Element deviceElement, Device.Builder builder) {
+        NodeList containers = deviceElement.getElementsByTagName("Accessors");
+        if (containers.getLength() == 0) {
+            return;
+        }
+
+        Element container = (Element) containers.item(0);
+        NodeList accessorNodes = container.getElementsByTagName("Accessor");
+
+        for (int i = 0; i < accessorNodes.getLength(); i++) {
+            Element accessorElement = (Element) accessorNodes.item(i);
+            Accessor accessor = parseAccessor(accessorElement);
+            builder.addAccessor(accessor);
+        }
+    }
+
+    private Accessor parseAccessor(Element element) {
+        String name = element.getAttribute("name");
+        String function = getElementTextContent(element, "Function");
+        String dataClass = getElementTextContent(element, "DataClass");
+        String addressRange = getElementTextContent(element, "AddressRange");
+
+        try {
+            return Accessor.builder()
+                    .name(name)
+                    .function(function)
+                    .dataClass(dataClass)
+                    .addressRange(addressRange)
+                    .build();
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to parse accessor '" + name + "': " + e.getMessage(), e);
+        }
     }
 
     private void parseRegisters(Element deviceElement, String containerTag,
@@ -197,7 +270,16 @@ public class ModbusXmlParser {
 
     private Register parseRegister(Element element) {
         String name = element.getAttribute("name");
-        int address = Integer.parseInt(element.getAttribute("address"));
+        String addressStr = element.getAttribute("address");
+        int address;
+        try {
+            address = Integer.parseInt(addressStr);
+            if (address < 0 || address > 65535) {
+                throw new RuntimeException("Register address out of range (0-65535) for '" + name + "': " + address);
+            }
+        } catch (NumberFormatException e) {
+            throw new RuntimeException("Invalid address value for register '" + name + "': " + addressStr, e);
+        }
         String dataType = getElementTextContent(element, "DataType");
         String access = getElementTextContent(element, "Access");
 

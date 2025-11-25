@@ -4,17 +4,21 @@ import com.anode.modbus.model.Device;
 import com.anode.modbus.model.FunctionCode;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Repository for storing and retrieving Modbus specification data.
  * Provides efficient lookup operations for function codes and devices.
+ *
+ * <p><b>Thread-Safety:</b> This class is thread-safe and can be used concurrently
+ * by multiple threads. All operations are atomic and use concurrent data structures.</p>
  */
 public class ModbusSpecRepository {
 
-    private final Map<String, FunctionCode> functionCodesByCode = new HashMap<>();
-    private final Map<String, FunctionCode> functionCodesByName = new HashMap<>();
-    private final Map<String, Device> devicesById = new HashMap<>();
-    private final Map<Integer, Device> devicesByUnitId = new HashMap<>();
+    private final Map<String, FunctionCode> functionCodesByCode = new ConcurrentHashMap<>();
+    private final Map<String, FunctionCode> functionCodesByName = new ConcurrentHashMap<>();
+    private final Map<String, Device> devicesById = new ConcurrentHashMap<>();
+    private final Map<Integer, Device> devicesByUnitId = new ConcurrentHashMap<>();
 
     /**
      * Adds a function code to the repository.

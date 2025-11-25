@@ -11,6 +11,7 @@ public final class Device {
 
     private final String id;
     private final int unitId;
+    private final List<Accessor> accessors;
     private final List<Register> holdingRegisters;
     private final List<Register> inputRegisters;
     private final List<Register> coils;
@@ -19,6 +20,7 @@ public final class Device {
     private Device(Builder builder) {
         this.id = Objects.requireNonNull(builder.id, "id must not be null");
         this.unitId = builder.unitId;
+        this.accessors = Collections.unmodifiableList(new ArrayList<>(builder.accessors));
         this.holdingRegisters = Collections.unmodifiableList(new ArrayList<>(builder.holdingRegisters));
         this.inputRegisters = Collections.unmodifiableList(new ArrayList<>(builder.inputRegisters));
         this.coils = Collections.unmodifiableList(new ArrayList<>(builder.coils));
@@ -31,6 +33,10 @@ public final class Device {
 
     public int getUnitId() {
         return unitId;
+    }
+
+    public List<Accessor> getAccessors() {
+        return accessors;
     }
 
     public List<Register> getHoldingRegisters() {
@@ -50,6 +56,15 @@ public final class Device {
     }
 
     /**
+     * Finds an accessor by its name.
+     */
+    public Optional<Accessor> findAccessorByName(String name) {
+        return accessors.stream()
+                .filter(a -> a.getName().equals(name))
+                .findFirst();
+    }
+
+    /**
      * Finds a holding register by its address.
      */
     public Optional<Register> findHoldingRegisterByAddress(int address) {
@@ -63,6 +78,60 @@ public final class Device {
      */
     public Optional<Register> findHoldingRegisterByName(String name) {
         return holdingRegisters.stream()
+                .filter(r -> r.getName().equals(name))
+                .findFirst();
+    }
+
+    /**
+     * Finds an input register by its address.
+     */
+    public Optional<Register> findInputRegisterByAddress(int address) {
+        return inputRegisters.stream()
+                .filter(r -> r.getAddress() == address)
+                .findFirst();
+    }
+
+    /**
+     * Finds an input register by its name.
+     */
+    public Optional<Register> findInputRegisterByName(String name) {
+        return inputRegisters.stream()
+                .filter(r -> r.getName().equals(name))
+                .findFirst();
+    }
+
+    /**
+     * Finds a coil by its address.
+     */
+    public Optional<Register> findCoilByAddress(int address) {
+        return coils.stream()
+                .filter(r -> r.getAddress() == address)
+                .findFirst();
+    }
+
+    /**
+     * Finds a coil by its name.
+     */
+    public Optional<Register> findCoilByName(String name) {
+        return coils.stream()
+                .filter(r -> r.getName().equals(name))
+                .findFirst();
+    }
+
+    /**
+     * Finds a discrete input by its address.
+     */
+    public Optional<Register> findDiscreteInputByAddress(int address) {
+        return discreteInputs.stream()
+                .filter(r -> r.getAddress() == address)
+                .findFirst();
+    }
+
+    /**
+     * Finds a discrete input by its name.
+     */
+    public Optional<Register> findDiscreteInputByName(String name) {
+        return discreteInputs.stream()
                 .filter(r -> r.getName().equals(name))
                 .findFirst();
     }
@@ -92,6 +161,7 @@ public final class Device {
     public static class Builder {
         private String id;
         private int unitId;
+        private final List<Accessor> accessors = new ArrayList<>();
         private final List<Register> holdingRegisters = new ArrayList<>();
         private final List<Register> inputRegisters = new ArrayList<>();
         private final List<Register> coils = new ArrayList<>();
@@ -104,6 +174,11 @@ public final class Device {
 
         public Builder unitId(int unitId) {
             this.unitId = unitId;
+            return this;
+        }
+
+        public Builder addAccessor(Accessor accessor) {
+            this.accessors.add(accessor);
             return this;
         }
 

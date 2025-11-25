@@ -1,11 +1,8 @@
-package com.anode.modbus.service;
+package com.anode.modbus.service.handlers;
 
 import com.anode.modbus.connection.ModbusConnection;
 import com.anode.modbus.connection.ModbusConnectionException;
 import com.anode.modbus.model.FunctionCode;
-import com.anode.modbus.service.ModbusService.ModbusOperationHandler;
-import com.anode.modbus.service.ModbusService.ModbusRequest;
-import com.anode.modbus.service.ModbusService.ModbusResult;
 import com.ghgande.j2mod.modbus.procimg.InputRegister;
 import com.ghgande.j2mod.modbus.procimg.Register;
 import com.ghgande.j2mod.modbus.procimg.SimpleRegister;
