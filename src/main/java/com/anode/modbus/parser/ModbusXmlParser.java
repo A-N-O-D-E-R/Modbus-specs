@@ -226,18 +226,41 @@ public class ModbusXmlParser {
         Element container = (Element) containers.item(0);
         NodeList accessorNodes = container.getElementsByTagName("Accessor");
 
+        java.util.Set<String> accessorNames = new java.util.HashSet<>();
+
         for (int i = 0; i < accessorNodes.getLength(); i++) {
             Element accessorElement = (Element) accessorNodes.item(i);
             Accessor accessor = parseAccessor(accessorElement);
+
+            // Check for duplicate accessor names
+            if (!accessorNames.add(accessor.getName())) {
+                throw new RuntimeException("Duplicate accessor name '" + accessor.getName() + "' in device");
+            }
+
             builder.addAccessor(accessor);
         }
     }
 
     private Accessor parseAccessor(Element element) {
         String name = element.getAttribute("name");
+        if (name == null || name.trim().isEmpty()) {
+            throw new RuntimeException("Accessor 'name' attribute is required and must not be empty");
+        }
+
         String function = getElementTextContent(element, "Function");
+        if (function == null || function.trim().isEmpty()) {
+            throw new RuntimeException("Accessor '" + name + "' must have a non-empty Function element");
+        }
+
         String dataClass = getElementTextContent(element, "DataClass");
+        if (dataClass == null || dataClass.trim().isEmpty()) {
+            throw new RuntimeException("Accessor '" + name + "' must have a non-empty DataClass element");
+        }
+
         String addressRange = getElementTextContent(element, "AddressRange");
+        if (addressRange == null || addressRange.trim().isEmpty()) {
+            throw new RuntimeException("Accessor '" + name + "' must have a non-empty AddressRange element");
+        }
 
         try {
             return Accessor.builder()
@@ -246,7 +269,9 @@ public class ModbusXmlParser {
                     .dataClass(dataClass)
                     .addressRange(addressRange)
                     .build();
-        } catch (Exception e) {
+        } catch (NumberFormatException e) {
+            throw new RuntimeException("Failed to parse accessor '" + name + "': Invalid address format in '" + addressRange + "'", e);
+        } catch (IllegalArgumentException e) {
             throw new RuntimeException("Failed to parse accessor '" + name + "': " + e.getMessage(), e);
         }
     }

@@ -30,22 +30,29 @@ import java.util.function.Supplier;
  */
 public class AccessorOperation {
 
+    private static final int MIN_UNIT_ID = 0;
+    private static final int MAX_UNIT_ID = 247;
+
     private final Accessor accessor;
     private final Supplier<ModbusConnection> connectionSupplier;
     private int unitId = 1;
 
     public AccessorOperation(Accessor accessor, Supplier<ModbusConnection> connectionSupplier) {
-        this.accessor = accessor;
-        this.connectionSupplier = connectionSupplier;
+        this.accessor = java.util.Objects.requireNonNull(accessor, "accessor must not be null");
+        this.connectionSupplier = java.util.Objects.requireNonNull(connectionSupplier, "connectionSupplier must not be null");
     }
 
     /**
      * Sets the unit ID (slave address) for this operation.
      *
-     * @param unitId The unit/slave ID (typically 1-247)
+     * @param unitId The unit/slave ID (0-247)
      * @return This operation for chaining
+     * @throws IllegalArgumentException if unitId is out of range
      */
     public AccessorOperation unitId(int unitId) {
+        if (unitId < MIN_UNIT_ID || unitId > MAX_UNIT_ID) {
+            throw new IllegalArgumentException("unitId must be between " + MIN_UNIT_ID + " and " + MAX_UNIT_ID + ", got: " + unitId);
+        }
         this.unitId = unitId;
         return this;
     }
@@ -63,14 +70,15 @@ public class AccessorOperation {
             int address = accessor.getStartAddress();
             int quantity = accessor.getRegisterCount();
 
-            if (accessor.getFunction().toLowerCase().contains("holding")) {
+            String function = accessor.getFunction();
+            if (isFunction(function, "ReadHoldingRegisters")) {
                 Register[] registers = connection.readHoldingRegisters(unitId, address, quantity);
                 return convertRegistersToInts(registers);
-            } else if (accessor.getFunction().toLowerCase().contains("input")) {
+            } else if (isFunction(function, "ReadInputRegisters")) {
                 InputRegister[] registers = connection.readInputRegisters(unitId, address, quantity);
                 return convertInputRegistersToInts(registers);
             } else {
-                throw new IllegalArgumentException("Accessor function is not a read operation: " + accessor.getFunction());
+                throw new IllegalArgumentException("Accessor function is not a read register operation: " + function);
             }
         } catch (ModbusConnectionException e) {
             throw new RuntimeException("Failed to execute read operation for accessor '" + accessor.getName() + "'", e);
@@ -104,13 +112,14 @@ public class AccessorOperation {
             int address = accessor.getStartAddress();
             int quantity = accessor.getRegisterCount();
 
+            String function = accessor.getFunction();
             BitVector bitVector;
-            if (accessor.getFunction().toLowerCase().contains("coil")) {
+            if (isFunction(function, "ReadCoils")) {
                 bitVector = connection.readCoils(unitId, address, quantity);
-            } else if (accessor.getFunction().toLowerCase().contains("discrete")) {
+            } else if (isFunction(function, "ReadDiscreteInputs")) {
                 bitVector = connection.readDiscreteInputs(unitId, address, quantity);
             } else {
-                throw new IllegalArgumentException("Accessor function is not a boolean read operation: " + accessor.getFunction());
+                throw new IllegalArgumentException("Accessor function is not a boolean read operation: " + function);
             }
 
             boolean[] result = new boolean[quantity];
@@ -134,10 +143,11 @@ public class AccessorOperation {
             ModbusConnection connection = connectionSupplier.get();
             int address = accessor.getStartAddress();
 
-            if (accessor.getFunction().toLowerCase().contains("single")) {
+            String function = accessor.getFunction();
+            if (isFunction(function, "WriteSingleRegister")) {
                 connection.writeSingleRegister(unitId, address, new SimpleRegister(value));
             } else {
-                throw new IllegalArgumentException("Accessor function is not a single write operation: " + accessor.getFunction());
+                throw new IllegalArgumentException("Accessor function is not WriteSingleRegister: " + function);
             }
         } catch (ModbusConnectionException e) {
             throw new RuntimeException("Failed to execute write operation for accessor '" + accessor.getName() + "'", e);
@@ -151,18 +161,30 @@ public class AccessorOperation {
      * @throws RuntimeException if the operation fails
      */
     public void write(int[] values) {
+        if (values == null) {
+            throw new IllegalArgumentException("values must not be null");
+        }
+
+        int expectedCount = accessor.getRegisterCount();
+        if (values.length != expectedCount) {
+            throw new IllegalArgumentException(
+                "Array length mismatch: accessor '" + accessor.getName() +
+                "' expects " + expectedCount + " values, got " + values.length);
+        }
+
         try {
             ModbusConnection connection = connectionSupplier.get();
             int address = accessor.getStartAddress();
 
-            if (accessor.getFunction().toLowerCase().contains("multiple")) {
+            String function = accessor.getFunction();
+            if (isFunction(function, "WriteMultipleRegisters")) {
                 Register[] registers = new Register[values.length];
                 for (int i = 0; i < values.length; i++) {
                     registers[i] = new SimpleRegister(values[i]);
                 }
                 connection.writeMultipleRegisters(unitId, address, registers);
             } else {
-                throw new IllegalArgumentException("Accessor function is not a multiple write operation: " + accessor.getFunction());
+                throw new IllegalArgumentException("Accessor function is not WriteMultipleRegisters: " + function);
             }
         } catch (ModbusConnectionException e) {
             throw new RuntimeException("Failed to execute write operation for accessor '" + accessor.getName() + "'", e);
@@ -180,10 +202,11 @@ public class AccessorOperation {
             ModbusConnection connection = connectionSupplier.get();
             int address = accessor.getStartAddress();
 
-            if (accessor.getFunction().toLowerCase().contains("coil")) {
+            String function = accessor.getFunction();
+            if (isFunction(function, "WriteSingleCoil")) {
                 connection.writeSingleCoil(unitId, address, value);
             } else {
-                throw new IllegalArgumentException("Accessor function is not a coil write operation: " + accessor.getFunction());
+                throw new IllegalArgumentException("Accessor function is not WriteSingleCoil: " + function);
             }
         } catch (ModbusConnectionException e) {
             throw new RuntimeException("Failed to execute coil write for accessor '" + accessor.getName() + "'", e);
@@ -197,18 +220,30 @@ public class AccessorOperation {
      * @throws RuntimeException if the operation fails
      */
     public void write(boolean[] values) {
+        if (values == null) {
+            throw new IllegalArgumentException("values must not be null");
+        }
+
+        int expectedCount = accessor.getRegisterCount();
+        if (values.length != expectedCount) {
+            throw new IllegalArgumentException(
+                "Array length mismatch: accessor '" + accessor.getName() +
+                "' expects " + expectedCount + " values, got " + values.length);
+        }
+
         try {
             ModbusConnection connection = connectionSupplier.get();
             int address = accessor.getStartAddress();
 
-            if (accessor.getFunction().toLowerCase().contains("coil")) {
+            String function = accessor.getFunction();
+            if (isFunction(function, "WriteMultipleCoils")) {
                 BitVector bitVector = new BitVector(values.length);
                 for (int i = 0; i < values.length; i++) {
                     bitVector.setBit(i, values[i]);
                 }
                 connection.writeMultipleCoils(unitId, address, bitVector);
             } else {
-                throw new IllegalArgumentException("Accessor function is not a coil write operation: " + accessor.getFunction());
+                throw new IllegalArgumentException("Accessor function is not WriteMultipleCoils: " + function);
             }
         } catch (ModbusConnectionException e) {
             throw new RuntimeException("Failed to execute multiple coil write for accessor '" + accessor.getName() + "'", e);
@@ -236,5 +271,17 @@ public class AccessorOperation {
             result[i] = registers[i].getValue();
         }
         return result;
+    }
+
+    /**
+     * Checks if the function name matches the expected function (case-insensitive).
+     * This method provides exact matching for function names to avoid false positives.
+     *
+     * @param actual   The actual function name from accessor
+     * @param expected The expected function name
+     * @return true if functions match
+     */
+    private boolean isFunction(String actual, String expected) {
+        return actual != null && actual.equalsIgnoreCase(expected);
     }
 }

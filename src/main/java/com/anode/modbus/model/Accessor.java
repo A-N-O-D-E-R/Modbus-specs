@@ -15,18 +15,41 @@ public final class Accessor {
     private final int startAddress;
     private final int endAddress;
 
+    private static final int MAX_MODBUS_ADDRESS = 65535;
+
     private Accessor(Builder builder) {
         this.name = Objects.requireNonNull(builder.name, "name must not be null");
+        if (name.trim().isEmpty()) {
+            throw new IllegalArgumentException("name must not be empty");
+        }
+
         this.function = Objects.requireNonNull(builder.function, "function must not be null");
+        if (function.trim().isEmpty()) {
+            throw new IllegalArgumentException("function must not be empty");
+        }
+
         this.dataClass = Objects.requireNonNull(builder.dataClass, "dataClass must not be null");
+        if (dataClass.trim().isEmpty()) {
+            throw new IllegalArgumentException("dataClass must not be empty");
+        }
+
         this.startAddress = builder.startAddress;
         this.endAddress = builder.endAddress;
 
-        if (startAddress < 0) {
-            throw new IllegalArgumentException("startAddress must be non-negative");
-        }
+        validateAddress(startAddress, "startAddress");
+        validateAddress(endAddress, "endAddress");
+
         if (endAddress < startAddress) {
             throw new IllegalArgumentException("endAddress must be greater than or equal to startAddress");
+        }
+    }
+
+    private static void validateAddress(int address, String fieldName) {
+        if (address < 0) {
+            throw new IllegalArgumentException(fieldName + " must be non-negative, got: " + address);
+        }
+        if (address > MAX_MODBUS_ADDRESS) {
+            throw new IllegalArgumentException(fieldName + " must not exceed " + MAX_MODBUS_ADDRESS + ", got: " + address);
         }
     }
 
@@ -138,17 +161,40 @@ public final class Accessor {
 
         /**
          * Sets the address range using a string like "1-2" or "5".
+         *
+         * @param range The address range string
+         * @return This builder for chaining
+         * @throws IllegalArgumentException if the range is invalid
          */
         public Builder addressRange(String range) {
+            if (range == null || range.trim().isEmpty()) {
+                throw new IllegalArgumentException("addressRange must not be null or empty");
+            }
+
             String trimmed = range.trim();
-            if (trimmed.contains("-")) {
-                String[] parts = trimmed.split("-");
-                this.startAddress = Integer.parseInt(parts[0].trim());
-                this.endAddress = Integer.parseInt(parts[1].trim());
-            } else {
-                int addr = Integer.parseInt(trimmed);
-                this.startAddress = addr;
-                this.endAddress = addr;
+            try {
+                if (trimmed.contains("-")) {
+                    String[] parts = trimmed.split("-");
+                    if (parts.length != 2) {
+                        throw new IllegalArgumentException("Invalid address range format: " + range);
+                    }
+                    this.startAddress = Integer.parseInt(parts[0].trim());
+                    this.endAddress = Integer.parseInt(parts[1].trim());
+
+                    validateAddress(startAddress, "startAddress");
+                    validateAddress(endAddress, "endAddress");
+
+                    if (endAddress < startAddress) {
+                        throw new IllegalArgumentException("End address must be >= start address: " + range);
+                    }
+                } else {
+                    int addr = Integer.parseInt(trimmed);
+                    validateAddress(addr, "address");
+                    this.startAddress = addr;
+                    this.endAddress = addr;
+                }
+            } catch (NumberFormatException e) {
+                throw new IllegalArgumentException("Invalid address format: " + range, e);
             }
             return this;
         }

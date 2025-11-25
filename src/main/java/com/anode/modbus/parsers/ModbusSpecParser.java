@@ -67,6 +67,7 @@ public class ModbusSpecParser implements AutoCloseable {
     private ModbusService service;
     private ConnectionConfig connectionConfig;
     private ModbusConnection activeConnection;
+    private final java.util.Map<String, java.util.List<Accessor>> accessorCache = new java.util.concurrent.ConcurrentHashMap<>();
 
     /**
      * Creates a new ModbusSpecParser with default components and a simulated handler.
@@ -131,6 +132,21 @@ public class ModbusSpecParser implements AutoCloseable {
         repository.addFunctionCodes(result.getFunctionCodes());
         repository.addDevices(result.getDevices());
         this.connectionConfig = result.getConnectionConfig();
+        rebuildAccessorCache();
+    }
+
+    /**
+     * Rebuilds the accessor cache for fast lookup.
+     * Call this after loading new devices.
+     */
+    private void rebuildAccessorCache() {
+        accessorCache.clear();
+        for (Device device : repository.getAllDevices()) {
+            for (Accessor accessor : device.getAccessors()) {
+                accessorCache.computeIfAbsent(accessor.getName(), k -> new java.util.ArrayList<>())
+                        .add(accessor);
+            }
+        }
     }
 
     /**
@@ -242,7 +258,7 @@ public class ModbusSpecParser implements AutoCloseable {
      *
      * @param accessorName The accessor name (e.g., "getTemperature1")
      * @return An AccessorOperation for fluent chaining
-     * @throws IllegalArgumentException if the accessor is not found
+     * @throws IllegalArgumentException if the accessor is not found or if multiple devices have the same accessor
      */
     public AccessorOperation accessor(String accessorName) {
         return accessor(accessorName, null);
@@ -254,30 +270,51 @@ public class ModbusSpecParser implements AutoCloseable {
      * @param accessorName The accessor name
      * @param deviceId The device ID to search in, or null to search all devices
      * @return An AccessorOperation for fluent chaining
-     * @throws IllegalArgumentException if the accessor is not found
+     * @throws IllegalArgumentException if the accessor is not found or validation fails
      */
     public AccessorOperation accessor(String accessorName, String deviceId) {
+        if (accessorName == null || accessorName.trim().isEmpty()) {
+            throw new IllegalArgumentException("accessorName must not be null or empty");
+        }
+
         Accessor accessor = null;
 
         if (deviceId != null) {
+            if (deviceId.trim().isEmpty()) {
+                throw new IllegalArgumentException("deviceId must not be empty");
+            }
             // Search in specific device
             Optional<Device> device = repository.findDeviceById(deviceId);
-            if (device.isPresent()) {
-                accessor = device.get().findAccessorByName(accessorName).orElse(null);
+            if (device.isEmpty()) {
+                throw new IllegalArgumentException("Device not found: " + deviceId);
             }
+            accessor = device.get().findAccessorByName(accessorName).orElse(null);
         } else {
-            // Search in all devices
-            for (Device device : repository.getAllDevices()) {
-                Optional<Accessor> found = device.findAccessorByName(accessorName);
-                if (found.isPresent()) {
-                    accessor = found.get();
-                    break;
+            // Use cache for O(1) lookup
+            java.util.List<Accessor> matches = accessorCache.get(accessorName);
+            if (matches != null && !matches.isEmpty()) {
+                if (matches.size() > 1) {
+                    // Multiple devices have the same accessor name
+                    java.util.List<String> deviceIds = new java.util.ArrayList<>();
+                    for (Accessor acc : matches) {
+                        for (Device dev : repository.getAllDevices()) {
+                            if (dev.getAccessors().contains(acc)) {
+                                deviceIds.add(dev.getId());
+                                break;
+                            }
+                        }
+                    }
+                    throw new IllegalArgumentException(
+                        "Ambiguous accessor name '" + accessorName + "' found in multiple devices: " +
+                        String.join(", ", deviceIds) + ". Please specify deviceId.");
                 }
+                accessor = matches.get(0);
             }
         }
 
         if (accessor == null) {
-            throw new IllegalArgumentException("Accessor not found: " + accessorName);
+            throw new IllegalArgumentException("Accessor not found: " + accessorName +
+                (deviceId != null ? " in device: " + deviceId : ""));
         }
 
         return new AccessorOperation(accessor, this::getOrCreateConnection);
